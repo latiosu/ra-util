@@ -38,7 +38,7 @@ def difference(ids, src, dst):
 @click.option('--sort/--no-sort', default=True, help='sort result by id')
 @click.argument('file', type=click.File('r'), nargs=-1)
 def union(sort, file):
-    """Computes union of all files (last occurrence takes precedence)."""
+    """Computes union of all files (duplicate ids overridden)."""
     # Refer to https://stackoverflow.com/a/15423007
     def should_use_block(value):
         for c in u"\u000a\u000d\u001c\u001d\u001e\u0085\u2028\u2029":
