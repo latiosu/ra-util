@@ -9,18 +9,25 @@ def util():
     pass
 
 
+def _load_yml(file):
+    payload = yaml.load(file.read(), Loader=yaml.FullLoader)
+    if 'Body' in payload:
+        payload = payload['Body']
+    return payload
+
+
+def _to_dict(yml):
+    return {str(entry['Id']): entry for entry in yml}
+
+
 @util.command()
 @click.option('--ids', is_flag=True, help='only output item ids')
 @click.argument('src', type=click.File('r'))
 @click.argument('dst', type=click.File('r'))
 def difference(ids, src, dst):
     """Computes difference of DST minus SRC."""
-    src_data = yaml.load(src.read(), Loader=yaml.FullLoader)
-    dst_data = yaml.load(dst.read(), Loader=yaml.FullLoader)
-    if 'Body' in src_data:
-        src_data = src_data['Body']
-    if 'Body' in dst_data:
-        dst_data = dst_data['Body']
+    src_data = _load_yml(src)
+    dst_data = _load_yml(dst)
     if ids:
         src_ids = {v['Id'] for v in src_data}
         dst_ids = {v['Id'] for v in dst_data}
@@ -60,9 +67,7 @@ def union(sort, file):
 
     result = dict()
     for f in file:
-        data = yaml.load(f.read(), Loader=yaml.FullLoader)
-        if 'Body' in data:
-            data = data['Body']
+        data = _load_yml(f)
         for entry in data:
             # Adjust script format for clarity
             if 'Script' in entry:
@@ -74,5 +79,62 @@ def union(sort, file):
     click.echo(yaml.dump(result, sort_keys=False))
 
 
-if __name__ == "__main__":
+@util.command()
+@click.option('-s', '--select',
+              type=click.Choice([
+                  'Id',
+                  'Name',
+                  'AegisName',
+                  'Type',
+                  'Slots',
+                  'Script',
+                ], case_sensitive=True),
+              required=True,
+              multiple=True,
+              prompt=True,
+              help='fields to output from HAYSTACK')
+@click.option('--keep-blanks',
+              is_flag=True,
+              help='keep blank lines from NEEDLES')
+@click.option('--ignore-missing',
+              is_flag=True,
+              help='skip output for missing NEEDLES')
+@click.option('--format', '_format',
+              help='format output fields, e.g. "ID:{} Slots:{}"')
+@click.argument('needles', type=click.File('r'))
+@click.argument('haystack', type=click.File('r'))
+def find(select, keep_blanks, ignore_missing, _format, needles, haystack):
+    """Finds NEEDLES in HAYSTACK and outputs desired value from HAYSTACK.
+
+    NEEDLES is a line-separated list of item ids.
+    HAYSTACK is an rathena item_db yaml.
+    """
+    if len(select) != _format.count('{}'):
+        raise click.UsageError('Mismatched number of arguments using format')
+    result = list()
+    data = _to_dict(_load_yml(haystack))
+    for row in needles.read().splitlines():
+        if row in data:
+            entry = data[row]
+            result.append([str(entry[s]) if s in entry else '' for s in select])
+        elif not row and keep_blanks:
+            result.append('')
+        elif ignore_missing:
+            continue
+        else:
+            result.append([row, 'MISSING'])
+    for entry in result:
+        if not entry:
+            if keep_blanks:
+                click.echo()
+            else:
+                continue
+        elif _format:
+            line = _format.format(*entry)
+            click.echo(line.replace('\\t', '\t').replace('\\n', '\n'))
+        else:
+            click.echo('\t'.join(entry))
+
+
+if __name__ == '__main__':
     util()
