@@ -91,7 +91,6 @@ def union(sort, file):
                 ], case_sensitive=True),
               required=True,
               multiple=True,
-              prompt=True,
               help='fields to output from HAYSTACK')
 @click.option('--keep-blanks',
               is_flag=True,
@@ -109,7 +108,7 @@ def find(select, keep_blanks, ignore_missing, _format, needles, haystack):
     NEEDLES is a line-separated list of item ids.
     HAYSTACK is an rathena item_db yaml.
     """
-    if len(select) != _format.count('{}'):
+    if _format and len(select) != _format.count('{}'):
         raise click.UsageError('Mismatched number of arguments using format')
     result = list()
     data = _to_dict(_load_yml(haystack))
