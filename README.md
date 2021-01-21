@@ -17,7 +17,6 @@ python3 util.py
 ## Contributing
 
 * Setup a local development environment with `poetry install`.
-* Run tests with `poetry run pytest`
 
 ## License
 
